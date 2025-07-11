@@ -101,6 +101,9 @@ voice_flag = 0					    #语音控制开关标记  1-开启；0-关闭
 car_move_tag=0					    #底盘运动控制标记，1-说明运动要变化，0-说明运动不变化
 arm_move_tag=0					    #机械臂运动控制标记，1-说明运动要变化，0-说明运动不变化
 
+fancy_mode = False  # 全局变量，建议放在全局变量区前面
+fancy_action_running = False
+
 
 #三、函数定义
 #3.1 定义时间函数
@@ -270,10 +273,10 @@ def car_arm_initial():
     time.sleep(1)
 
 # ====== 花式轮子全局变量和函数，建议放在主函数定义区前面 ======
-fancy_mode = False  # 全局变量，建议放在全局变量区
+
 
 def fancy_wheel_action(angle=300, time_ms=1000):
-    Srt = '#001P{0:0>4d}T{4:0>4d}!#002P{1:0>4d}T{4:0>4d}!#003P{2:0>4d}T{4:0>4d}!#004P{3:0>4d}T{4:0>4d}!'.format(
+    Srt = '#011P{0:0>4d}T{4:0>4d}!#012P{1:0>4d}T{4:0>4d}!#013P{2:0>4d}T{4:0>4d}!#014P{3:0>4d}T{4:0>4d}!'.format(
         1500+angle, 1500-angle, 1500-angle, 1500+angle, time_ms)
     print("花式轮子动作:", Srt)
     uart.uart_send_str(Srt)
@@ -374,6 +377,7 @@ def loop_ps2():
     global arm_servo_1_pwm,arm_servo_2_pwm,arm_servo_3_pwm,arm_servo_4_pwm
     global speed_pwm
     global fancy_mode
+    global fancy_action_running
 
     if not ps2.read_gamepad():
         return
@@ -389,7 +393,7 @@ def loop_ps2():
     ######################请同学们自己补充各个按键功能 开始##########################
 
     # 左摇杆X轴控制前进/后退，Y轴控制转弯
-    left_x = ps2.Analog(8)  # X轴，控制前进后退
+    left_x = ps2.Analog(6)  # X轴，控制前进后退
     left_y = ps2.Analog(7)  # Y轴，控制转弯
     print(f"left_x={left_x}, left_y={left_y}")
     dead_zone = 8
@@ -415,22 +419,37 @@ def loop_ps2():
     else:
         turn_angle = 0
 
+    # 三角形键切换花式轮子动作
+    if ps2.ButtonPressed('TRIANGLE') and not fancy_action_running:
+        fancy_mode = not fancy_mode
+        if fancy_mode:
+            fancy_action_running = True
+            fancy_wheel_action(700)
+            time.sleep(1)
+            fancy_action_running = False
+            car_move_tag = 1
+        else:
+            car_stop()
+            car_move_tag = 0
+
+    # 花式模式下允许前进/后退，禁止转弯，且始终用花式轮子姿态
+    if fancy_mode:
+        if run_speed != 0:
+            # 让花式轮子以指定速度前进/后退，angle=700可调
+            car_run_and_turn(run_speed, 0, 0)
+            car_move_tag = 1
+        else:
+            fancy_wheel_action(700, 0)  # 停止时保持花式姿态不动
+            car_move_tag = 0
+        return
+
+    # 普通遥杆控制逻辑
     if run_speed != 0 or turn_angle != 0:
         car_run_and_turn(run_speed, turn_angle, 0)
         car_move_tag = 1
     else:
         car_stop()
         car_move_tag = 0
-
-    # 三角形键切换花式轮子动作
-    if ps2.ButtonPressed('TRIANGLE'):
-        fancy_mode = not fancy_mode
-        if fancy_mode:
-            fancy_wheel_action(300)
-            car_move_tag = 1
-        else:
-            car_stop()
-            car_move_tag = 0
 
     ######################请同学们自己补充各个按键功能 结束##########################
         
