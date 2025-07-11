@@ -389,7 +389,7 @@ def loop_ps2():
     ######################请同学们自己补充各个按键功能 开始##########################
 
     # 左摇杆X轴控制前进/后退，Y轴控制转弯
-    left_x = ps2.Analog(6)  # X轴，控制前进后退
+    left_x = ps2.Analog(8)  # X轴，控制前进后退
     left_y = ps2.Analog(7)  # Y轴，控制转弯
     print(f"left_x={left_x}, left_y={left_y}")
     dead_zone = 8
