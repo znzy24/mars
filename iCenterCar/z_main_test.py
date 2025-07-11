@@ -269,6 +269,15 @@ def car_arm_initial():
     arm_servos_init()
     time.sleep(1)
 
+# ====== 花式轮子全局变量和函数，建议放在主函数定义区前面 ======
+fancy_mode = False  # 全局变量，建议放在全局变量区
+
+def fancy_wheel_action(angle=300, time_ms=1000):
+    Srt = '#001P{0:0>4d}T{4:0>4d}!#002P{1:0>4d}T{4:0>4d}!#003P{2:0>4d}T{4:0>4d}!#004P{3:0>4d}T{4:0>4d}!'.format(
+        1500+angle, 1500-angle, 1500-angle, 1500+angle, time_ms)
+    print("花式轮子动作:", Srt)
+    uart.uart_send_str(Srt)
+# ====== 花式轮子全局变量和函数结束 ======
 
 #3.3处理串口接收的数据
 '''
@@ -364,7 +373,8 @@ def loop_ps2():
     global arm_move_tag,car_move_tag
     global arm_servo_1_pwm,arm_servo_2_pwm,arm_servo_3_pwm,arm_servo_4_pwm
     global speed_pwm
-    
+    global fancy_mode
+
     if not ps2.read_gamepad():
         return
     
@@ -377,24 +387,50 @@ def loop_ps2():
         print("Start button pressed. ")
 
     ######################请同学们自己补充各个按键功能 开始##########################
-    
-    # 左摇杆Y轴控制前进/后退，模拟值范围0~255，中位128
-    left_y = ps2.Analog(7)
-    dead_zone = 8  # 死区，防止微小抖动
+
+    # 左摇杆X轴控制前进/后退，Y轴控制转弯
+    left_x = ps2.Analog(6)  # X轴，控制前进后退
+    left_y = ps2.Analog(7)  # Y轴，控制转弯
+    print(f"left_x={left_x}, left_y={left_y}")
+    dead_zone = 8
     center = 128
-    max_pwm = 1000  # 最大PWM
-    if left_y < center - dead_zone:  # 前进
-        speed_pwm = int((center - left_y) / (center - 0) * max_pwm)
-        car_run(speed_pwm, 0)
-        car_move_tag = 1
-    elif left_y > center + dead_zone:  # 后退
-        speed_pwm = int((left_y - center) / (255 - center) * max_pwm)
-        print("后退", left_y, speed_pwm)
-        car_run(-speed_pwm, 0)
+    max_pwm = 1000
+    max_angle = 400  # 最大转向角度
+
+    # 前进/后退
+    if left_x < center - dead_zone:
+        speed_pwm = int((center - left_x) / (center - 0) * max_pwm)
+        run_speed = speed_pwm
+    elif left_x > center + dead_zone:
+        speed_pwm = int((left_x - center) / (255 - center) * max_pwm)
+        run_speed = -speed_pwm
+    else:
+        run_speed = 0
+
+    # 转弯
+    if left_y < center - dead_zone:
+        turn_angle = int((center - left_y) / (center - 0) * max_angle)
+    elif left_y > center + dead_zone:
+        turn_angle = -int((left_y - center) / (255 - center) * max_angle)
+    else:
+        turn_angle = 0
+
+    if run_speed != 0 or turn_angle != 0:
+        car_run_and_turn(run_speed, turn_angle, 0)
         car_move_tag = 1
     else:
         car_stop()
         car_move_tag = 0
+
+    # 三角形键切换花式轮子动作
+    if ps2.ButtonPressed('TRIANGLE'):
+        fancy_mode = not fancy_mode
+        if fancy_mode:
+            fancy_wheel_action(300)
+            car_move_tag = 1
+        else:
+            car_stop()
+            car_move_tag = 0
 
     ######################请同学们自己补充各个按键功能 结束##########################
         
@@ -427,7 +463,7 @@ def z_main_test():
    #################################此处是手柄实例化及初始化 结束#################################### 
     #初始化车子和机械臂
 
-    car_arm_initial()
+    #car_arm_initial()
     
     beep.beep_on_times(3,0.1)                          # 启动完成
     
@@ -441,7 +477,3 @@ def z_main_test():
         loop_ps2()                                     # 手柄数据读写
         
         time.sleep(0.1)
-
-# 程序入口
-if __name__ == '__main__':
-    z_main_test()
