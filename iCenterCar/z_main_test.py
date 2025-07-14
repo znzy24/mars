@@ -28,6 +28,7 @@
 import re							#正则表达式模块，用于字符串匹配和处理
 import time
 import _thread
+import math
 # 从`factory`包中导入各种自定义模块，分别用于控制LED、蜂鸣器、按键、ADC、串口、文件、舵机、运动学和PS2手柄
 from iCenterCar.z_led import Mars_LED
 from iCenterCar.z_beep import Mars_BEEP
@@ -103,8 +104,9 @@ arm_move_tag=0					    #机械臂运动控制标记，1-说明运动要变化，
 
 fancy_mode = False  # 全局变量，建议放在全局变量区前面
 fancy_action_running = False
-
-
+arm_mode = False
+arm_angle_1 = 1500
+arm_angle_2 = 1350
 #三、函数定义
 #3.1 定义时间函数
 def millis():
@@ -131,6 +133,13 @@ def car_run(run_speed,run_time):
     print(Srt)
     print("Car is running")
     uart.uart_send_str(Srt)
+
+def car_run_fancy(run_speed, run_time):
+    Srt = '#001P{0:0>4d}T{4:0>4d}!#002P{1:0>4d}T{4:0>4d}!#003P{2:0>4d}T{4:0>4d}!#004P{3:0>4d}T{4:0>4d}!'.format(1500-run_speed,1500-run-speed,1500+run_speed,1500+run_speed,run_time)
+    print(Srt)
+    print("Car is running")
+    uart.uart_send_str(Srt)
+    
         
 #3.4.3 定义小车转弯运动
 def car_turn(turn_angle,turn_time):
@@ -272,15 +281,12 @@ def car_arm_initial():
     arm_servos_init()
     time.sleep(1)
 
-# ====== 花式轮子全局变量和函数，建议放在主函数定义区前面 ======
-
 
 def fancy_wheel_action(angle=300, time_ms=1000):
     Srt = '#011P{0:0>4d}T{4:0>4d}!#012P{1:0>4d}T{4:0>4d}!#013P{2:0>4d}T{4:0>4d}!#014P{3:0>4d}T{4:0>4d}!'.format(
         1500+angle, 1500-angle, 1500-angle, 1500+angle, time_ms)
     print("花式轮子动作:", Srt)
     uart.uart_send_str(Srt)
-# ====== 花式轮子全局变量和函数结束 ======
 
 #3.3处理串口接收的数据
 '''
@@ -378,6 +384,9 @@ def loop_ps2():
     global speed_pwm
     global fancy_mode
     global fancy_action_running
+    global arm_mode 
+    global arm_angle_1
+    global arm_angle_2
 
     if not ps2.read_gamepad():
         return
@@ -392,56 +401,102 @@ def loop_ps2():
 
     ######################请同学们自己补充各个按键功能 开始##########################
 
-    # 左摇杆X轴控制前进/后退，Y轴控制转弯
-    left_x = ps2.Analog(6)  # X轴，控制前进后退
-    left_y = ps2.Analog(7)  # Y轴，控制转弯
-    print(f"left_x={left_x}, left_y={left_y}")
+    right_y = ps2.Analog(6) 
+    left_x = ps2.Analog(7)
+    left_y = ps2.Analog(8)   
+
     dead_zone = 8
     center = 128
     max_pwm = 1000
     max_angle = 400  # 最大转向角度
 
+    # 增加CIRCLE键防抖边沿检测
+    global last_circle_pressed
+    if 'last_circle_pressed' not in globals():
+        last_circle_pressed = False
+    circle_now = ps2.Button('CIRCLE')
+    if circle_now and not last_circle_pressed:
+        print("Circle button pressed. Toggling arm mode.")
+        arm_mode = not arm_mode
+        if arm_mode:
+            print("Arm mode enabled.")
+            car_stop()
+    last_circle_pressed = circle_now
+
+    if arm_mode:
+        # PAD_UP/PAD_DOWN 边沿检测
+        global last_pad_up_pressed, last_pad_down_pressed
+        global last_pad_left_pressed, last_pad_right_pressed  
+        if 'last_pad_up_pressed' not in globals():
+            last_pad_up_pressed = False
+        if 'last_pad_down_pressed' not in globals():
+            last_pad_down_pressed = False
+        if 'last_pad_left_pressed' not in globals():
+            last_pad_left_pressed = False
+        if 'last_pad_right_pressed' not in globals():
+            last_pad_right_pressed = False
+        pad_up_now = ps2.Button('PAD_UP')
+        pad_down_now = ps2.Button('PAD_DOWN')
+        pad_left_now = ps2.Button('PAD_LEFT')
+        pad_right_now = ps2.Button('PAD_RIGHT')
+        if pad_up_now and not last_pad_up_pressed:
+            arm_angle_2 += ps2_arm_inc
+        if pad_down_now and not last_pad_down_pressed:
+            arm_angle_2 -= ps2_arm_inc
+        if pad_left_now and not last_pad_left_pressed:
+            arm_angle_1 += ps2_arm_inc
+        if pad_right_now and not last_pad_right_pressed:
+            arm_angle_1 -= ps2_arm_inc
+        last_pad_up_pressed = pad_up_now
+        last_pad_down_pressed = pad_down_now
+        last_pad_left_pressed = pad_left_now
+        last_pad_right_pressed = pad_right_now
+        arm_move_1(21, arm_angle_1, 500)
+        arm_move_1(22, arm_angle_2, 500)
+        return
+
     # 前进/后退
-    if left_x < center - dead_zone:
-        speed_pwm = int((center - left_x) / (center - 0) * max_pwm)
+    if right_y < center - dead_zone:
+        speed_pwm = int((center - right_y) / (center - 0) * max_pwm)
         run_speed = speed_pwm
-    elif left_x > center + dead_zone:
-        speed_pwm = int((left_x - center) / (255 - center) * max_pwm)
+    elif right_y > center + dead_zone:
+        speed_pwm = int((right_y - center) / (255 - center) * max_pwm)
         run_speed = -speed_pwm
     else:
         run_speed = 0
 
-    # 转弯
-    if left_y < center - dead_zone:
-        turn_angle = int((center - left_y) / (center - 0) * max_angle)
-    elif left_y > center + dead_zone:
-        turn_angle = -int((left_y - center) / (255 - center) * max_angle)
+
+    # 原有转弯逻辑
+    if left_x < center - dead_zone:
+        turn_angle = int((center - left_x) / (center - 0) * max_angle)
+    elif left_x > center + dead_zone:
+        turn_angle = -int((left_x - center) / (255 - center) * max_angle)
     else:
         turn_angle = 0
 
-    # 三角形键切换花式轮子动作
-    if ps2.ButtonPressed('TRIANGLE') and not fancy_action_running:
-        fancy_mode = not fancy_mode
-        if fancy_mode:
-            fancy_action_running = True
-            fancy_wheel_action(700)
-            time.sleep(1)
-            fancy_action_running = False
-            car_move_tag = 1
-        else:
-            car_stop()
-            car_move_tag = 0
+    # # 三角形键切换花式轮子动作
+    # if ps2.ButtonPressed('TRIANGLE') and not fancy_action_running:
+    #     fancy_mode = not fancy_mode
+    #     if fancy_mode:
+    #         fancy_action_running = True
+    #         fancy_wheel_action(700)
+    #         time.sleep(1)
+    #         fancy_action_running = False
+    #         car_move_tag = 1
+    #     else:
+    #         car_stop()
+    #         car_move_tag = 0
 
-    # 花式模式下允许前进/后退，禁止转弯，且始终用花式轮子姿态
-    if fancy_mode:
-        if run_speed != 0:
-            # 让花式轮子以指定速度前进/后退，angle=700可调
-            car_run_and_turn(run_speed, 0, 0)
-            car_move_tag = 1
-        else:
-            fancy_wheel_action(700, 0)  # 停止时保持花式姿态不动
-            car_move_tag = 0
-        return
+    # # 花式模式下允许前进/后退，禁止转弯，且始终用花式轮子姿态
+    # if fancy_mode:
+    #     if run_speed != 0:
+    #         # 让花式轮子以指定速度前进/后退，angle=700可调
+    #         car_run_fancy(run_speed, 1000)
+    #         car_move_tag = 1
+    #     else:
+    #         fancy_wheel_action(700, 0)  # 停止时保持花式姿态不动
+    #         car_move_tag = 0
+    #     return
 
     # 普通遥杆控制逻辑
     if run_speed != 0 or turn_angle != 0:
