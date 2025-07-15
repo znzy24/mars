@@ -133,12 +133,6 @@ def car_run(run_speed,run_time):
     print(Srt)
     print("Car is running")
     uart.uart_send_str(Srt)
-
-def car_run_fancy(run_speed, run_time):
-    Srt = '#001P{0:0>4d}T{4:0>4d}!#002P{1:0>4d}T{4:0>4d}!#003P{2:0>4d}T{4:0>4d}!#004P{3:0>4d}T{4:0>4d}!'.format(1500-run_speed,1500-run-speed,1500+run_speed,1500+run_speed,run_time)
-    print(Srt)
-    print("Car is running")
-    uart.uart_send_str(Srt)
     
         
 #3.4.3 定义小车转弯运动
