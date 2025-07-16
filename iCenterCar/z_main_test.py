@@ -63,7 +63,7 @@ car_servo_br_init=1500
 #2.3定义机械臂舵机的初始位置PWM数值，并将测试得到数值对以下数值进行更新
 arm_servo_1_init=1500
 arm_servo_2_init=1350
-arm_servo_3_init=1500
+arm_servo_3_init=1200
 arm_servo_4_init=1500
 
 #2.4定义机械臂舵机的实时PWM数值，初始数值为init,后面根据控制情况实时调整
@@ -107,6 +107,7 @@ fancy_action_running = False
 arm_mode = False
 arm_angle_1 = 1500
 arm_angle_2 = 1350
+arm_angle_3 = 1200
 #三、函数定义
 #3.1 定义时间函数
 def millis():
@@ -159,9 +160,13 @@ def car_stop():
 #3.5 定义机械臂运动函数
 #3.5.1 定义机械臂舵机初始化函数，即再一次对中
 def arm_servos_init():
+    global arm_angle_1, arm_angle_2, arm_angle_3
     Srt = '#021P{0:0>4d}T{4:0>4d}!#022P{1:0>4d}T{4:0>4d}!#023P{2:0>4d}T{4:0>4d}!#024P{3:0>4d}T{4:0>4d}!'.format(arm_servo_1_init,arm_servo_2_init,arm_servo_3_init,arm_servo_4_init,1000)
     print(Srt)
     print("Arm servos are tunning")
+    arm_angle_1 = 1500
+    arm_angle_2 = 1350
+    arm_angle_3 = 1200
     uart.uart_send_str(Srt)
 #2. 定义机械臂运动——任何1个关节运动，需要传递arm_id,arm_ang,move_time
 def arm_move_1(arm_id,arm_ang,move_time):
@@ -276,11 +281,6 @@ def car_arm_initial():
     time.sleep(1)
 
 
-def fancy_wheel_action(angle=300, time_ms=1000):
-    Srt = '#011P{0:0>4d}T{4:0>4d}!#012P{1:0>4d}T{4:0>4d}!#013P{2:0>4d}T{4:0>4d}!#014P{3:0>4d}T{4:0>4d}!'.format(
-        1500+angle, 1500-angle, 1500-angle, 1500+angle, time_ms)
-    print("花式轮子动作:", Srt)
-    uart.uart_send_str(Srt)
 
 #3.3处理串口接收的数据
 '''
@@ -381,6 +381,7 @@ def loop_ps2():
     global arm_mode 
     global arm_angle_1
     global arm_angle_2
+    global arm_angle_3
 
     if not ps2.read_gamepad():
         return
@@ -418,36 +419,65 @@ def loop_ps2():
     last_circle_pressed = circle_now
 
     if arm_mode:
-        # PAD_UP/PAD_DOWN 边沿检测
-        global last_pad_up_pressed, last_pad_down_pressed
-        global last_pad_left_pressed, last_pad_right_pressed  
-        if 'last_pad_up_pressed' not in globals():
-            last_pad_up_pressed = False
-        if 'last_pad_down_pressed' not in globals():
-            last_pad_down_pressed = False
-        if 'last_pad_left_pressed' not in globals():
-            last_pad_left_pressed = False
-        if 'last_pad_right_pressed' not in globals():
-            last_pad_right_pressed = False
-        pad_up_now = ps2.Button('PAD_UP')
-        pad_down_now = ps2.Button('PAD_DOWN')
-        pad_left_now = ps2.Button('PAD_LEFT')
-        pad_right_now = ps2.Button('PAD_RIGHT')
-        if pad_up_now and not last_pad_up_pressed:
-            arm_angle_2 += ps2_arm_inc
-        if pad_down_now and not last_pad_down_pressed:
-            arm_angle_2 -= ps2_arm_inc
-        if pad_left_now and not last_pad_left_pressed:
-            arm_angle_1 += ps2_arm_inc
-        if pad_right_now and not last_pad_right_pressed:
-            arm_angle_1 -= ps2_arm_inc
-        last_pad_up_pressed = pad_up_now
-        last_pad_down_pressed = pad_down_now
-        last_pad_left_pressed = pad_left_now
-        last_pad_right_pressed = pad_right_now
-        arm_move_1(21, arm_angle_1, 500)
-        arm_move_1(22, arm_angle_2, 500)
+        # 机械臂控制逻辑
+        pad_up = ps2.Button('PAD_UP')
+        pad_down = ps2.Button('PAD_DOWN')
+        pad_left = ps2.Button('PAD_LEFT')
+        pad_right = ps2.Button('PAD_RIGHT')
+        L1_up = ps2.Button('L1_UP')
+        L1_down = ps2.Button('L1_DOWN')
+
+        if pad_up: arm_angle_2 = min(2500, arm_angle_2 + 10)
+        if pad_down: arm_angle_2 = max(500, arm_angle_2 - 10)
+        if pad_left: arm_angle_1 = min(2500, arm_angle_1 + 10)
+        if pad_right: arm_angle_1 = max(500, arm_angle_1 - 10)
+        if L1_up: arm_angle_3 = min(2500, arm_angle_3 + 10)
+        if L1_down: arm_angle_3 = max(500, arm_angle_3 - 10)
+
+        # 实时发送指令
+        arm_move_1(arm_servo_1, arm_angle_1, 100)
+        arm_move_1(arm_servo_2, arm_angle_2, 100)
+        arm_move_1(arm_servo_3, arm_angle_3, 100)
         return
+    def solute(x,y,z):
+        l1 = 100
+        l2 = 100
+        # 计算 R 和 S
+        R = math.sqrt(x**2 + y**2)
+        S = z
+        numerator = R**2 + S**2 - l1**2 - l2**2
+        denominator = 2 * l1 * l2
+        cos_beta = numerator / denominator
+    
+    # 检查 cosβ 是否在有效范围内
+        if abs(cos_beta) > 1.0:
+            return []
+    
+    # 计算 sinβ 的两个可能值
+        sin_beta = math.sqrt(1 - cos_beta**2)  # 正根
+    
+        solutions = []
+        # 计算 β
+        beta = math.atan2(sin_beta, cos_beta)
+        
+        # 计算中间变量 A 和 B
+        A = l1 + l2 * cos_beta
+        B = l2 * sin_beta
+        
+        # 计算 α 的正弦和余弦
+        denom = A**2 + B**2
+        sin_alpha = (A * R - B * S) / denom
+        cos_alpha = (B * R + A * S) / denom
+        
+        # 计算 α
+        alpha = math.atan2(sin_alpha, cos_alpha)
+        
+        # 计算 γ
+        gamma = math.atan2(y, x)  # 使用 atan2 处理所有象限
+        
+        solutions.append((alpha, beta, gamma))
+    
+        return solutions
 
     # 前进/后退
     if right_y < center - dead_zone:
@@ -461,37 +491,13 @@ def loop_ps2():
 
 
     # 原有转弯逻辑
+    
     if left_x < center - dead_zone:
         turn_angle = int((center - left_x) / (center - 0) * max_angle)
     elif left_x > center + dead_zone:
         turn_angle = -int((left_x - center) / (255 - center) * max_angle)
     else:
         turn_angle = 0
-
-    # # 三角形键切换花式轮子动作
-    # if ps2.ButtonPressed('TRIANGLE') and not fancy_action_running:
-    #     fancy_mode = not fancy_mode
-    #     if fancy_mode:
-    #         fancy_action_running = True
-    #         fancy_wheel_action(700)
-    #         time.sleep(1)
-    #         fancy_action_running = False
-    #         car_move_tag = 1
-    #     else:
-    #         car_stop()
-    #         car_move_tag = 0
-
-    # # 花式模式下允许前进/后退，禁止转弯，且始终用花式轮子姿态
-    # if fancy_mode:
-    #     if run_speed != 0:
-    #         # 让花式轮子以指定速度前进/后退，angle=700可调
-    #         car_run_fancy(run_speed, 1000)
-    #         car_move_tag = 1
-    #     else:
-    #         fancy_wheel_action(700, 0)  # 停止时保持花式姿态不动
-    #         car_move_tag = 0
-    #     return
-
     # 普通遥杆控制逻辑
     if run_speed != 0 or turn_angle != 0:
         car_run_and_turn(run_speed, turn_angle, 0)
