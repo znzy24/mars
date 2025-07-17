@@ -100,7 +100,8 @@ speed_pwm=0					            #通过遥感计算得到的速度
 #2.5标志位定义
 voice_flag = 0					    #语音控制开关标记  1-开启；0-关闭
 car_move_tag=0					    #底盘运动控制标记，1-说明运动要变化，0-说明运动不变化
-arm_move_tag=0					    #机械臂运动控制标记，1-说明运动要变化，0-说明运动不变化
+arm_move_tag=0
+load_flag = False					   
 
 fancy_mode = False  # 全局变量，建议放在全局变量区前面
 fancy_action_running = False
@@ -189,98 +190,12 @@ def arm_stop():
     print("Arm is running")
     uart.uart_send_str(armSrt)
 
-
-#3.6主函数启动 车子机械臂初始化运动
-def car_arm_initial():
-     
-    #初始化底盘舵机和机械臂舵机，使其位于目标中的初始位置
-    car_servos_init()
-    time.sleep(1)
-    arm_servos_init()
-    time.sleep(1)
-    
-    #直行前进运动测试
-    car_run(int(car_run_speed/2),int(car_run_time/2)) #测试阶段速度 时间减半
-    time.sleep(1)
-    car_stop()
-    time.sleep(1) 
-
-    car_run(-int(car_run_speed/2),int(car_run_time/2)) #测试阶段速度 时间减半
-    time.sleep(1)
-    car_stop()
-    time.sleep(1) 
-
-    #转向测试
-    car_turn(car_turn_angle,car_turn_time)
-    time.sleep(1)
-    car_stop()
-    time.sleep(1) 
-
-    car_turn(-car_turn_angle,car_turn_time)
-    time.sleep(1)
-    car_stop()
-    time.sleep(1) 
-
-    #转向运动测试
-    car_run_and_turn(car_run_speed,car_turn_angle,car_turn_time)
-    time.sleep(1)
-    car_stop()
-    time.sleep(1) 
-
-    car_run_and_turn(-car_run_speed,-car_turn_angle,car_turn_time)
-    time.sleep(1)
-    car_stop()
-    time.sleep(1) 
-    
-    arm_move_1(arm_servo_1,2000,1000)  #机械臂1号舵机运动
-    time.sleep(1)
-    
-    arm_move_1(arm_servo_1,1000,1000)  #机械臂1号舵机运动
-    time.sleep(1)
-    
-    arm_move_1(arm_servo_1,arm_servo_1_init,1000)  #机械臂1号舵机运动
-    time.sleep(1)
-
-    
-    #机械臂2号舵机先转到2000，再转到1000，最后回到初始位置
-    arm_move_1(arm_servo_2,2000,1000)  #机械臂1号舵机运动
-    time.sleep(1)
-    
-    arm_move_1(arm_servo_2,1000,1000)  #机械臂1号舵机运动
-    time.sleep(1)
-
-    arm_move_1(arm_servo_2,arm_servo_2_init,1000)  #机械臂1号舵机运动
-    time.sleep(1)
-       
-    #机械臂3号舵机先转到2000，再转到1000，最后回到初始位置
-    arm_move_1(arm_servo_3,2000,1000)  #机械臂1号舵机运动
-    time.sleep(2)
-    
-    arm_move_1(arm_servo_3,1000,1000)  #机械臂1号舵机运动
-    time.sleep(2)
-
-    arm_move_1(arm_servo_3,arm_servo_3_init,1000)  #机械臂1号舵机运动
-    time.sleep(1)
-       
-    #机械臂4号舵机先转到2000，再转到1000，最后回到初始位置
-    arm_move_1(arm_servo_4,2000,1000)  #机械臂1号舵机运动
-    time.sleep(2)
-    
-    arm_move_1(arm_servo_4,1000,1000)  #机械臂1号舵机运动
-    time.sleep(2)
-
-    arm_move_1(arm_servo_4,arm_servo_4_init,1000)  #机械臂1号舵机运动
-    time.sleep(1)
-
-    #机械臂的4个舵机同时测试
-    #…………
-    #初始化车子和机械臂，为开始工作做准备
-    car_servos_init()
-    time.sleep(1)
-    arm_servos_init()
-    time.sleep(1)
-
-
+#3.5.3 卸货
+def load_off(flag):
+    if flag:
+        uart.uart_send_str('#025P1100T0005!')
+    else:
+        uart.uart_send_str('#025P2050T0004!')
 
 #3.3处理串口接收的数据
 '''
@@ -382,6 +297,7 @@ def loop_ps2():
     global arm_angle_1
     global arm_angle_2
     global arm_angle_3
+    global ps2, load_flag, last_circle_pressed
 
     if not ps2.read_gamepad():
         return
@@ -411,73 +327,60 @@ def loop_ps2():
         last_circle_pressed = False
     circle_now = ps2.Button('CIRCLE')
     if circle_now and not last_circle_pressed:
-        print("Circle button pressed. Toggling arm mode.")
-        arm_mode = not arm_mode
-        if arm_mode:
-            print("Arm mode enabled.")
-            car_stop()
+        load_flag = not load_flag
+        load_off(load_flag)
     last_circle_pressed = circle_now
-
-    if arm_mode:
-        # 机械臂控制逻辑
-        pad_up = ps2.Button('PAD_UP')
-        pad_down = ps2.Button('PAD_DOWN')
-        pad_left = ps2.Button('PAD_LEFT')
-        pad_right = ps2.Button('PAD_RIGHT')
-        L1_up = ps2.Button('L1_UP')
-        L1_down = ps2.Button('L1_DOWN')
-
-        if pad_up: arm_angle_2 = min(2500, arm_angle_2 + 10)
-        if pad_down: arm_angle_2 = max(500, arm_angle_2 - 10)
-        if pad_left: arm_angle_1 = min(2500, arm_angle_1 + 10)
-        if pad_right: arm_angle_1 = max(500, arm_angle_1 - 10)
-        if L1_up: arm_angle_3 = min(2500, arm_angle_3 + 10)
-        if L1_down: arm_angle_3 = max(500, arm_angle_3 - 10)
-
-        # 实时发送指令
-        arm_move_1(arm_servo_1, arm_angle_1, 100)
-        arm_move_1(arm_servo_2, arm_angle_2, 100)
-        arm_move_1(arm_servo_3, arm_angle_3, 100)
+    
+    global last_triangle_pressed
+    if 'last_triangle_pressed' not in globals():
+        last_triangle_pressed = False
+    triangle_now = ps2.Button('TRIANGLE')
+    if triangle_now and not last_triangle_pressed:
+        arm_angle_1 = 1500
+        arm_angle_2 = 550
+        arm_angle_3 = 1620
+        arm_move_1(arm_servo_2, arm_angle_2, 1000)
+        arm_move_1(arm_servo_3, arm_angle_3, 1000)
+        time.sleep(1)
+        arm_move_1(arm_servo_1, arm_angle_1, 1000)
         return
-    def solute(x,y,z):
-        l1 = 100
-        l2 = 100
-        # 计算 R 和 S
-        R = math.sqrt(x**2 + y**2)
-        S = z
-        numerator = R**2 + S**2 - l1**2 - l2**2
-        denominator = 2 * l1 * l2
-        cos_beta = numerator / denominator
+
+    last_triangle_pressed = triangle_now
+
+    global last_cross_pressed
+    if 'last_cross_pressed' not in globals():
+        last_cross_pressed = False
+    cross_now = ps2.Button('CROSS')
+    if cross_now and not last_cross_pressed:
+        arm_angle_1 = 540
+        arm_angle_2 = 1560
+        arm_angle_3 = 860
+        arm_move_1(arm_servo_2, arm_angle_2, 1000)
+        arm_move_1(arm_servo_3, arm_angle_3, 1000)
+        time.sleep(1)
+        arm_move_1(arm_servo_1, arm_angle_1, 1000)
+        return
+    last_cross_pressed = cross_now
     
-    # 检查 cosβ 是否在有效范围内
-        if abs(cos_beta) > 1.0:
-            return []
-    
-    # 计算 sinβ 的两个可能值
-        sin_beta = math.sqrt(1 - cos_beta**2)  # 正根
-    
-        solutions = []
-        # 计算 β
-        beta = math.atan2(sin_beta, cos_beta)
-        
-        # 计算中间变量 A 和 B
-        A = l1 + l2 * cos_beta
-        B = l2 * sin_beta
-        
-        # 计算 α 的正弦和余弦
-        denom = A**2 + B**2
-        sin_alpha = (A * R - B * S) / denom
-        cos_alpha = (B * R + A * S) / denom
-        
-        # 计算 α
-        alpha = math.atan2(sin_alpha, cos_alpha)
-        
-        # 计算 γ
-        gamma = math.atan2(y, x)  # 使用 atan2 处理所有象限
-        
-        solutions.append((alpha, beta, gamma))
-    
-        return solutions
+    # 机械臂控制逻辑
+    pad_up = ps2.Button('PAD_UP')
+    pad_down = ps2.Button('PAD_DOWN')
+    pad_left = ps2.Button('PAD_LEFT')
+    pad_right = ps2.Button('PAD_RIGHT')
+    L1 = ps2.Button('L1')
+    L2 = ps2.Button('L2')
+
+    if pad_up: arm_angle_2 = min(2500, arm_angle_2 + 10)
+    if pad_down: arm_angle_2 = max(500, arm_angle_2 - 10)
+    if pad_left: arm_angle_1 = min(2500, arm_angle_1 + 10)
+    if pad_right: arm_angle_1 = max(500, arm_angle_1 - 10)
+    if L1: arm_angle_3 = min(2500, arm_angle_3 + 10)
+    if L2: arm_angle_3 = max(500, arm_angle_3 - 10)
+
+    # 实时发送指令
+    arm_move_1(arm_servo_1, arm_angle_1, 1000)
+    arm_move_1(arm_servo_2, arm_angle_2, 1000)
+    arm_move_1(arm_servo_3, arm_angle_3, 1000)
 
     # 前进/后退
     if right_y < center - dead_zone:
