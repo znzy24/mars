@@ -33,7 +33,7 @@ import math
 from iCenterCar.z_led import Mars_LED
 from iCenterCar.z_beep import Mars_BEEP
 from iCenterCar.z_key import Mars_KEY
-from iCenterCar.z_uart import Mars_UART
+from iCenterCar.z_uart import Robot_UART
 from iCenterCar.z_ps2 import Mars_PS2
 
 
@@ -98,8 +98,7 @@ speed_pwm=0					            #通过遥感计算得到的速度
 #2.5标志位定义
 voice_flag = 0					    #语音控制开关标记  1-开启；0-关闭
 car_move_tag=0					    #底盘运动控制标记，1-说明运动要变化，0-说明运动不变化
-arm_move_tag=0
-load_flag = False					   
+arm_move_tag=0				   
 
 fancy_mode = False  # 全局变量，建议放在全局变量区前面
 fancy_action_running = False
@@ -188,13 +187,10 @@ def arm_stop():
     print("Arm is running")
     uart.uart_send_str(armSrt)
 
-#3.5.3 卸货
-def load_off(flag):
-    if flag:
-        uart.uart_send_str('#025P1100T0005!')
-    else:
-        uart.uart_send_str('#025P2050T0004!')
-
+def catch():
+    uart.uart_send_str('#024P1000T0000!')
+def release():
+    uart.uart_send_str('#024P2000T0000!')
 #3.3处理串口接收的数据
 '''
     - 调用uart.recv_str()接收数据
@@ -295,7 +291,7 @@ def loop_ps2():
     global arm_angle_1
     global arm_angle_2
     global arm_angle_3
-    global ps2, load_flag, last_circle_pressed
+    global ps2
 
     if not ps2.read_gamepad():
         return
@@ -320,14 +316,15 @@ def loop_ps2():
     max_angle = 400  # 最大转向角度
 
     # 卸货/复位
-    global last_circle_pressed
-    if 'last_circle_pressed' not in globals():
-        last_circle_pressed = False
-    circle_now = ps2.Button('CIRCLE')
-    if circle_now and not last_circle_pressed:
-        load_flag = not load_flag
-        load_off(load_flag)
-    last_circle_pressed = circle_now
+    if ps2.ButtonPressed('CIRCLE') and ps2.ButtonPressed('CROSS'):
+        uart.uart_send_str('#025P1500T0000!')
+    elif ps2.ButtonPressed('CIRCLE'):
+        uart.uart_send_str('#025P1000T0000!')
+    elif ps2.ButtonPressed('CROSS'):
+        uart.uart_send_str('#025P2000T0000!')
+    else:
+        uart.uart_send_str('#025P1500T0000!')
+
     # 夹爪移至地面
     global last_triangle_pressed
     if 'last_triangle_pressed' not in globals():
@@ -344,29 +341,31 @@ def loop_ps2():
         return
     last_triangle_pressed = triangle_now
     # 夹爪移至货仓
-    global last_cross_pressed
-    if 'last_cross_pressed' not in globals():
-        last_cross_pressed = False
-    cross_now = ps2.Button('CROSS')
-    if cross_now and not last_cross_pressed:
-        arm_angle_1 = 540
-        arm_angle_2 = 1560
-        arm_angle_3 = 860
-        arm_move_1(arm_servo_2, arm_angle_2, 1000)
-        arm_move_1(arm_servo_3, arm_angle_3, 1000)
-        time.sleep(1)
-        arm_move_1(arm_servo_1, arm_angle_1, 1000)
-        return
-    last_cross_pressed = cross_now
-    # 夹爪合拢/释放
     global last_square_pressed
     if 'last_square_pressed' not in globals():
         last_square_pressed = False
     square_now = ps2.Button('SQUARE')
     if square_now and not last_square_pressed:
-        pass
-    last_square_pressed = square_now 
-    
+        arm_servos_init()
+        arm_angle_1 = 540
+        arm_angle_2 = 1560
+        arm_angle_3 = 860
+        time.sleep(1)
+        arm_move_1(arm_servo_1, arm_angle_1, 1000)
+        arm_move_1(arm_servo_2, arm_angle_2, 1000)
+        arm_move_1(arm_servo_3, arm_angle_3, 1000)
+        return
+    last_square_pressed = square_now
+    # 夹爪合拢/释放
+    if ps2.ButtonPressed('R1') and ps2.ButtonPressed('R2'):
+        uart.uart_send_str('#024P1500T0000!')
+    elif ps2.ButtonPressed('R1'):
+        catch()
+    elif ps2.ButtonPressed('R2'):
+        release()
+    else:
+        uart.uart_send_str('#024P1500T0000!')
+
     # 大臂上升/下降
     pad_up = ps2.Button('PAD_UP')
     pad_down = ps2.Button('PAD_DOWN')
@@ -426,7 +425,7 @@ def z_main_test():
     nled = Mars_LED()                                    # 实例化一个led灯对象
     beep = Mars_BEEP()                                   # 实例化一个蜂鸣器对象
     key = Mars_KEY()                                     # 实例化按键对象
-    uart = Mars_UART()                                   # 实例化串口对象
+    uart = Robot_UART()                                   # 实例化串口对象
 
    #################################此处是手柄实例化及初始化 开始#################################### 
     ps2 = Mars_PS2()                                     # 实例化手柄对象

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>火星车网页控制器 - 科技版</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700&family=Titillium+Web:wght@400;600&family=Source+Code+Pro&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-glow: #00e5ff;
+            --success-glow: #00ff9d;
+            --warning-glow: #ffc400;
+            --danger-glow: #ff3d71;
+            --dark-bg: #101620;
+            --card-bg: rgba(10, 25, 47, 0.7);
+            --text-color: #e0e0e0;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Titillium Web', sans-serif;
+            background-color: var(--dark-bg);
+            background-image: radial-gradient(ellipse at center, #2a3a4a 0%, #1c2732 100%);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 30px;
+            min-height: 100vh;
+        }
+
+        h1 {
+            font-family: 'Exo 2', sans-serif;
+            font-size: 2.5rem;
+            color: var(--primary-glow);
+            text-shadow: 0 0 5px var(--primary-glow), 0 0 15px var(--primary-glow);
+            margin-bottom: 40px;
+            letter-spacing: 2px;
+        }
+
+        .main-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 25px;
+            justify-content: center;
+            max-width: 1300px;
+        }
+
+        .control-section {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            min-width: 300px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .control-section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
+        }
+
+        h2 {
+            margin-top: 0;
+            font-family: 'Exo 2', sans-serif;
+            color: #ffffff;
+            border-bottom: 1px solid var(--primary-glow);
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            width: 100%;
+            text-align: center;
+        }
+
+        .button-group {
+            margin-top: 20px;
+        }
+        
+        strong {
+            color: var(--primary-glow);
+            font-weight: 600;
+        }
+        
+        .button-group button {
+            margin: 5px;
+        }
+
+        .d-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 8px;
+            /* --- 决定性修正：删除错误的宽度限制 --- */
+            /* width: 190px; */ /*  <-- 此行已删除 */
+            margin: 25px 0;
+        }
+
+        button {
+            padding: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--success-glow);
+            border: 2px solid var(--success-glow);
+            transition: all 0.3s ease;
+            min-width: 95px;
+            text-shadow: 0 0 3px var(--success-glow);
+        }
+        
+        .d-pad button {
+            margin: 0;
+        }
+
+
+        button:hover {
+            background: var(--success-glow);
+            color: var(--dark-bg);
+            box-shadow: 0 0 20px var(--success-glow);
+            text-shadow: none;
+        }
+        
+        button:active {
+            transform: scale(0.96);
+            filter: brightness(1.2);
+        }
+
+        .btn-reset {
+            color: var(--warning-glow);
+            border-color: var(--warning-glow);
+            text-shadow: 0 0 3px var(--warning-glow);
+        }
+        .btn-reset:hover {
+            background: var(--warning-glow);
+            box-shadow: 0 0 20px var(--warning-glow);
+        }
+
+        .btn-action {
+            color: var(--primary-glow);
+            border-color: var(--primary-glow);
+            text-shadow: 0 0 3px var(--primary-glow);
+        }
+        .btn-action:hover {
+            background: var(--primary-glow);
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+        
+        .btn-danger {
+            color: var(--danger-glow);
+            border-color: var(--danger-glow);
+            text-shadow: 0 0 3px var(--danger-glow);
+        }
+        .btn-danger:hover {
+            background: var(--danger-glow);
+            box-shadow: 0 0 20px var(--danger-glow);
+        }
+        
+        #btn-forward { grid-column: 2; grid-row: 1; }
+        #btn-left { grid-column: 1; grid-row: 2; }
+        #btn-center-reset { grid-column: 2; grid-row: 2; }
+        #btn-right { grid-column: 3; grid-row: 2; }
+        #btn-backward { grid-column: 2; grid-row: 3; }
+
+        .log-section {
+            width: 100%;
+            max-width: 860px;
+            margin-top: 40px;
+        }
+
+        #log-output {
+            background: rgba(0, 0, 0, 0.5);
+            font-family: 'Source Code Pro', monospace;
+            padding: 20px;
+            border-radius: 8px;
+            height: 200px;
+            overflow-y: auto;
+            text-align: left;
+            white-space: pre-wrap;
+            border: 1px solid #444;
+            color: var(--success-glow);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+        #log-output::-webkit-scrollbar {
+            width: 8px;
+        }
+        #log-output::-webkit-scrollbar-track {
+            background: #222;
+        }
+        #log-output::-webkit-scrollbar-thumb {
+            background-color: var(--primary-glow);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>火星车控制器</h1>
+
+    <div class="main-container">
+        <div class="control-section">
+            <h2>底盘控制</h2>
+            <div class="d-pad">
+                <button id="btn-forward" onclick="sendCommand('chassis_forward')">前进</button>
+                <button id="btn-left" class="btn-action" onclick="sendCommand('chassis_left')">左转</button>
+                <button id="btn-center-reset" class="btn-reset" onclick="sendCommand('chassis_reset')">复位</button>
+                <button id="btn-right" class="btn-action" onclick="sendCommand('chassis_right')">右转</button>
+                <button id="btn-backward" onclick="sendCommand('chassis_backward')">后退</button>
+            </div>
+        </div>
+
+        <div class="control-section">
+            <h2>机械臂控制</h2>
+            <div class="button-group">
+                <strong>机械臂 1 (底座):</strong><br>
+                <button class="btn-action" onclick="sendCommand('arm1_left')">左转</button>
+                <button class="btn-action" onclick="sendCommand('arm1_right')">右转</button>
+                <button class="btn-reset" onclick="sendCommand('arm1_reset')">复位</button>
+            </div>
+            <div class="button-group">
+                <strong>机械臂 2 (大臂):</strong><br>
+                <button class="btn-action" onclick="sendCommand('arm2_up')">上升</button>
+                <button class="btn-action" onclick="sendCommand('arm2_down')">下降</button>
+                <button class="btn-reset" onclick="sendCommand('arm2_reset')">复位</button>
+            </div>
+            <div class="button-group">
+                <strong>机械臂 3 (小臂):</strong><br>
+                <button class="btn-action" onclick="sendCommand('arm3_up')">上升</button>
+                <button class="btn-action" onclick="sendCommand('arm3_down')">下降</button>
+                <button class="btn-reset" onclick="sendCommand('arm3_reset')">复位</button>
+            </div>
+        </div>
+
+        <div class="control-section">
+            <h2>末端工具</h2>
+            <div class="button-group">
+                <strong>机械爪:</strong><br>
+                <button onclick="sendCommand('gripper_grasp')">夹取</button>
+                <button class="btn-danger" onclick="sendCommand('gripper_release')">松开</button>
+            </div>
+            <div class="button-group">
+                <strong>夹爪预设:</strong><br>
+                <button id="btn-ground" class="btn-action" onclick="sendCommand('gripper_ground')">夹爪移至地面</button>
+                <button id="btn-cargo" class="btn-action" onclick="sendCommand('gripper_cargo')">夹爪移至货舱</button>
+            </div>
+            <div class="button-group">
+                <strong>装卸装置:</strong><br>
+                <button onclick="sendCommand('loader_unload')">卸货</button>
+                <button class="btn-reset" onclick="sendCommand('loader_reset')">复位</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="log-section">
+        <h2>命令日志</h2>
+        <div id="log-output">欢迎来到火星车控制中心...</div>
+    </div>
+
+    <script>
+        const logOutput = document.getElementById('log-output');
+
+        function sendCommand(command) {
+            const timestamp = new Date().toLocaleTimeString();
+            let commandText = '';
+
+            const commandMap = {
+                'chassis_forward': '底盘: 前进',
+                'chassis_backward': '底盘: 后退',
+                'chassis_left': '底盘: 左转',
+                'chassis_right': '底盘: 右转',
+                'chassis_reset': '底盘: 复位',
+                
+                'arm1_left': '机械臂1: 左转',
+                'arm1_right': '机械臂1: 右转',
+                'arm1_reset': '机械臂1: 复位',
+                
+                'arm2_up': '机械臂2: 上升',
+                'arm2_down': '机械臂2: 下降',
+                'arm2_reset': '机械臂2: 复位',
+
+                'arm3_up': '机械臂3: 上升',
+                'arm3_down': '机械臂3: 下降',
+                'arm3_reset': '机械臂3: 复位',
+
+                'gripper_grasp': '机械爪: 执行夹取',
+                'gripper_release': '机械爪: 执行松开',
+
+                'loader_unload': '装卸装置: 执行卸货',
+                'loader_reset': '装卸装置: 复位'
+                ,
+                'gripper_ground': '夹爪移至地面',
+                'gripper_cargo': '夹爪移至货舱'
+            };
+
+            commandText = commandMap[command] || '未知指令';
+
+            const logMessage = `<span style="color: #888;">[${timestamp}]</span> <span style="color: #e0e0e0;">发送指令: ${commandText}</span>`;
+            console.log(`[${timestamp}] 发送指令: ${commandText}`);
+
+            logOutput.innerHTML = logMessage + '<br>' + logOutput.innerHTML;
+            fetch('/cmd?cmd=' + command);
+        }
+    </script>
+
+</body>
+</html>
