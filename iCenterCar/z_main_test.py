@@ -63,14 +63,12 @@ car_servo_br_init=1500
 #2.3定义机械臂舵机的初始位置PWM数值，并将测试得到数值对以下数值进行更新
 arm_servo_1_init=1500
 arm_servo_2_init=1350
-arm_servo_3_init=1200
-arm_servo_4_init=1500
+arm_servo_3_init=1000
 
 #2.4定义机械臂舵机的实时PWM数值，初始数值为init,后面根据控制情况实时调整
 arm_servo_1_pwm=arm_servo_1_init
 arm_servo_2_pwm=arm_servo_2_init
 arm_servo_3_pwm=arm_servo_3_init
-arm_servo_4_pwm=arm_servo_4_init
 #定义机械臂运动的时间
 arm_move_time = 2000					#机械臂运动时间，单位ms
 
@@ -108,7 +106,7 @@ fancy_action_running = False
 arm_mode = False
 arm_angle_1 = 1500
 arm_angle_2 = 1350
-arm_angle_3 = 1200
+arm_angle_3 = 1000
 #三、函数定义
 #3.1 定义时间函数
 def millis():
@@ -162,7 +160,7 @@ def car_stop():
 #3.5.1 定义机械臂舵机初始化函数，即再一次对中
 def arm_servos_init():
     global arm_angle_1, arm_angle_2, arm_angle_3
-    Srt = '#021P{0:0>4d}T{4:0>4d}!#022P{1:0>4d}T{4:0>4d}!#023P{2:0>4d}T{4:0>4d}!#024P{3:0>4d}T{4:0>4d}!'.format(arm_servo_1_init,arm_servo_2_init,arm_servo_3_init,arm_servo_4_init,1000)
+    Srt = '#021P{0:0>4d}T{3:0>4d}!#022P{1:0>4d}T{3:0>4d}!#023P{2:0>4d}T{3:0>4d}!'.format(arm_servo_1_init,arm_servo_2_init,arm_servo_3_init,1000)
     print(Srt)
     print("Arm servos are tunning")
     arm_angle_1 = 1500
@@ -321,7 +319,7 @@ def loop_ps2():
     max_pwm = 1000
     max_angle = 400  # 最大转向角度
 
-    # 增加CIRCLE键防抖边沿检测
+    # 卸货/复位
     global last_circle_pressed
     if 'last_circle_pressed' not in globals():
         last_circle_pressed = False
@@ -330,7 +328,7 @@ def loop_ps2():
         load_flag = not load_flag
         load_off(load_flag)
     last_circle_pressed = circle_now
-    
+    # 夹爪移至地面
     global last_triangle_pressed
     if 'last_triangle_pressed' not in globals():
         last_triangle_pressed = False
@@ -344,9 +342,8 @@ def loop_ps2():
         time.sleep(1)
         arm_move_1(arm_servo_1, arm_angle_1, 1000)
         return
-
     last_triangle_pressed = triangle_now
-
+    # 夹爪移至货仓
     global last_cross_pressed
     if 'last_cross_pressed' not in globals():
         last_cross_pressed = False
@@ -361,12 +358,22 @@ def loop_ps2():
         arm_move_1(arm_servo_1, arm_angle_1, 1000)
         return
     last_cross_pressed = cross_now
+    # 夹爪合拢/释放
+    global last_square_pressed
+    if 'last_square_pressed' not in globals():
+        last_square_pressed = False
+    square_now = ps2.Button('SQUARE')
+    if square_now and not last_square_pressed:
+        pass
+    last_square_pressed = square_now 
     
-    # 机械臂控制逻辑
+    # 大臂上升/下降
     pad_up = ps2.Button('PAD_UP')
     pad_down = ps2.Button('PAD_DOWN')
+    # 底座左转/右转
     pad_left = ps2.Button('PAD_LEFT')
     pad_right = ps2.Button('PAD_RIGHT')
+    # 小臂上升/下降
     L1 = ps2.Button('L1')
     L2 = ps2.Button('L2')
 
@@ -393,7 +400,7 @@ def loop_ps2():
         run_speed = 0
 
 
-    # 原有转弯逻辑
+    # 转弯
     
     if left_x < center - dead_zone:
         turn_angle = int((center - left_x) / (center - 0) * max_angle)
@@ -401,7 +408,7 @@ def loop_ps2():
         turn_angle = -int((left_x - center) / (255 - center) * max_angle)
     else:
         turn_angle = 0
-    # 普通遥杆控制逻辑
+
     if run_speed != 0 or turn_angle != 0:
         car_run_and_turn(run_speed, turn_angle, 0)
         car_move_tag = 1
