@@ -252,11 +252,6 @@
                 <button class="btn-danger" onclick="sendCommand('gripper_release')">松开</button>
             </div>
             <div class="button-group">
-                <strong>夹爪预设:</strong><br>
-                <button id="btn-ground" class="btn-action" onclick="sendCommand('gripper_ground')">夹爪移至地面</button>
-                <button id="btn-cargo" class="btn-action" onclick="sendCommand('gripper_cargo')">夹爪移至货舱</button>
-            </div>
-            <div class="button-group">
                 <strong>装卸装置:</strong><br>
                 <button onclick="sendCommand('loader_unload')">卸货</button>
                 <button class="btn-reset" onclick="sendCommand('loader_reset')">复位</button>
@@ -300,9 +295,6 @@
 
                 'loader_unload': '装卸装置: 执行卸货',
                 'loader_reset': '装卸装置: 复位'
-                ,
-                'gripper_ground': '夹爪移至地面',
-                'gripper_cargo': '夹爪移至货舱'
             };
 
             commandText = commandMap[command] || '未知指令';
@@ -311,7 +303,6 @@
             console.log(`[${timestamp}] 发送指令: ${commandText}`);
 
             logOutput.innerHTML = logMessage + '<br>' + logOutput.innerHTML;
-            fetch('/cmd?cmd=' + command);
         }
     </script>
 

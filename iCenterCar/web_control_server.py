@@ -85,9 +85,9 @@ def handle_command(cmd):
     elif cmd == 'GRIPPER_RELEASE':
         arm_move_1(24, 2000, 3)
     elif cmd == 'LOADER_UNLOAD':
-        print('Loader unload')
+        arm_move_1(25, 1100, 5)
     elif cmd == 'LOADER_RESET':
-        print('Loader reset')
+        arm_move_1(25, 2000, 4)
     else:
         print('Unknown command:', cmd)
 # ====== MicroPython HTTP Web Server ======

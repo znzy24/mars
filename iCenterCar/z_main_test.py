@@ -63,7 +63,7 @@ car_servo_br_init=1500
 #2.3定义机械臂舵机的初始位置PWM数值，并将测试得到数值对以下数值进行更新
 arm_servo_1_init=1500
 arm_servo_2_init=1350
-arm_servo_3_init=1000
+arm_servo_3_init=1200
 
 #2.4定义机械臂舵机的实时PWM数值，初始数值为init,后面根据控制情况实时调整
 arm_servo_1_pwm=arm_servo_1_init
@@ -105,7 +105,7 @@ fancy_action_running = False
 arm_mode = False
 arm_angle_1 = 1500
 arm_angle_2 = 1350
-arm_angle_3 = 1000
+arm_angle_3 = 1200
 #三、函数定义
 #3.1 定义时间函数
 def millis():
@@ -165,6 +165,8 @@ def arm_servos_init():
     arm_angle_1 = 1500
     arm_angle_2 = 1350
     arm_angle_3 = 1200
+    arm_move_1(23, arm_angle_3, 500)  # 调整第一个舵机 
+    time.sleep(1)
     uart.uart_send_str(Srt)
 #2. 定义机械臂运动——任何1个关节运动，需要传递arm_id,arm_ang,move_time
 def arm_move_1(arm_id,arm_ang,move_time):
@@ -331,13 +333,11 @@ def loop_ps2():
         last_triangle_pressed = False
     triangle_now = ps2.Button('TRIANGLE')
     if triangle_now and not last_triangle_pressed:
-        arm_angle_1 = 1500
         arm_angle_2 = 550
         arm_angle_3 = 1620
         arm_move_1(arm_servo_2, arm_angle_2, 1000)
         arm_move_1(arm_servo_3, arm_angle_3, 1000)
         time.sleep(1)
-        arm_move_1(arm_servo_1, arm_angle_1, 1000)
         return
     last_triangle_pressed = triangle_now
     # 夹爪移至货仓
@@ -347,11 +347,12 @@ def loop_ps2():
     square_now = ps2.Button('SQUARE')
     if square_now and not last_square_pressed:
         arm_servos_init()
-        arm_angle_1 = 540
-        arm_angle_2 = 1560
-        arm_angle_3 = 860
+        arm_angle_1 = 530
+        arm_angle_2 = 1520
+        arm_angle_3 = 1020
         time.sleep(1)
         arm_move_1(arm_servo_1, arm_angle_1, 1000)
+        time.sleep(2)
         arm_move_1(arm_servo_2, arm_angle_2, 1000)
         arm_move_1(arm_servo_3, arm_angle_3, 1000)
         return
